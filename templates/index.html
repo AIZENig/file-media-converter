@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Media Converter</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:       #0a0a0f;
+      --surface:  #111118;
+      --border:   #1e1e2e;
+      --accent:   #7c6af7;
+      --accent2:  #e06cf0;
+      --green:    #2dd68c;
+      --text:     #d4d4e8;
+      --muted:    #5a5a7a;
+      --danger:   #f06c6c;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem 4rem;
+    }
+
+    /* Ambient glow */
+    body::before {
+      content: '';
+      position: fixed; top: -200px; left: 50%; transform: translateX(-50%);
+      width: 600px; height: 400px;
+      background: radial-gradient(ellipse, rgba(124,106,247,.18) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+      position: relative;
+    }
+    header h1 {
+      font-family: 'Space Mono', monospace;
+      font-size: clamp(1.6rem, 4vw, 2.4rem);
+      background: linear-gradient(135deg, #7c6af7, #e06cf0);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -1px;
+    }
+    header p {
+      color: var(--muted);
+      font-size: .875rem;
+      margin-top: .4rem;
+      font-weight: 300;
+    }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      gap: .4rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: .3rem;
+      margin-bottom: 1.75rem;
+      width: 100%;
+      max-width: 520px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: .6rem;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-size: .875rem;
+      font-weight: 500;
+      transition: all .2s;
+      display: flex; align-items: center; justify-content: center; gap: .4rem;
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, rgba(124,106,247,.25), rgba(224,108,240,.15));
+      color: #a89fff;
+      border: 1px solid rgba(124,106,247,.35);
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 520px;
+      box-shadow: 0 24px 80px rgba(0,0,0,.6);
+    }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* ── Drop zone ── */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 2rem 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      margin-bottom: 1.25rem;
+      position: relative;
+    }
+    .drop-zone:hover, .drop-zone.over {
+      border-color: var(--accent);
+      background: rgba(124,106,247,.05);
+    }
+    .drop-zone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .drop-icon { font-size: 2rem; margin-bottom: .4rem; }
+    .drop-text { font-size: .85rem; color: var(--muted); }
+    .drop-text span { color: var(--accent); font-weight: 600; }
+    .file-name  { margin-top: .4rem; font-size: .78rem; color: #a89fff; min-height: 1.1rem; }
+
+    /* ── Labels + rows ── */
+    .field-label {
+      font-size: .75rem;
+      color: var(--muted);
+      font-family: 'Space Mono', monospace;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: .5rem;
+      display: block;
+    }
+    .field { margin-bottom: 1.25rem; }
+
+    /* ── Chip grids ── */
+    .chip-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .4rem;
+      margin-bottom: 1.25rem;
+    }
+    .chip {
+      padding: .35rem .75rem;
+      border: 1.5px solid var(--border);
+      border-radius: 99px;
+      font-size: .8rem;
+      cursor: pointer;
+      transition: all .15s;
+      color: var(--muted);
+      background: transparent;
+      font-family: 'Space Mono', monospace;
+    }
+    .chip:hover { border-color: var(--accent); color: var(--text); }
+    .chip.selected {
+      border-color: var(--accent);
+      background: rgba(124,106,247,.2);
+      color: #b8b0ff;
+      font-weight: 700;
+    }
+
+    /* ── Select ── */
+    select {
+      width: 100%;
+      padding: .6rem .9rem;
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: .875rem;
+      font-family: 'DM Sans', sans-serif;
+      outline: none;
+      transition: border-color .2s;
+    }
+    select:focus { border-color: var(--accent); }
+
+    /* ── Range ── */
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+    .range-row {
+      display: flex; align-items: center; gap: .75rem;
+    }
+    .range-val {
+      font-family: 'Space Mono', monospace;
+      font-size: .8rem;
+      color: #a89fff;
+      min-width: 2.5rem;
+      text-align: right;
+    }
+
+    /* ── Convert button ── */
+    .convert-btn {
+      width: 100%;
+      padding: .85rem;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      transition: opacity .2s, transform .1s;
+      letter-spacing: .02em;
+    }
+    .convert-btn:hover:not(:disabled) { opacity: .88; transform: translateY(-1px); }
+    .convert-btn:active:not(:disabled) { transform: translateY(0); }
+    .convert-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+    /* ── Progress ── */
+    .progress-section { display: none; margin-top: 1.5rem; }
+    .progress-header {
+      display: flex; justify-content: space-between;
+      font-size: .78rem; color: var(--muted); margin-bottom: .5rem;
+      font-family: 'Space Mono', monospace;
+    }
+    .progress-track {
+      background: var(--border);
+      border-radius: 99px;
+      height: 6px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 99px;
+      width: 0%;
+      transition: width .4s ease;
+    }
+    .status-msg { font-size: .8rem; color: var(--muted); margin-top: .5rem; text-align: center; }
+
+    /* ── Download ── */
+    .download-btn {
+      display: none;
+      width: 100%;
+      margin-top: 1rem;
+      padding: .85rem;
+      background: linear-gradient(135deg, #1a8f5e, var(--green));
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+      font-family: 'DM Sans', sans-serif;
+      transition: opacity .2s;
+      letter-spacing: .02em;
+    }
+    .download-btn:hover { opacity: .88; }
+
+    /* ── Error ── */
+    .error-msg {
+      display: none;
+      margin-top: 1rem;
+      padding: .75rem 1rem;
+      background: rgba(240,108,108,.1);
+      border: 1px solid rgba(240,108,108,.3);
+      border-radius: 8px;
+      color: #ffa5a5;
+      font-size: .83rem;
+    }
+
+    /* ── File size info ── */
+    .size-compare {
+      display: none;
+      margin-top: .75rem;
+      padding: .6rem 1rem;
+      background: rgba(45,214,140,.08);
+      border: 1px solid rgba(45,214,140,.2);
+      border-radius: 8px;
+      font-size: .8rem;
+      color: var(--green);
+      font-family: 'Space Mono', monospace;
+      text-align: center;
+    }
+
+    @media (max-width: 380px) {
+      .card { padding: 1.25rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>⚡ MEDIA CONVERTER</h1>
+  <p>Video · Image · PDF — all processed locally on your machine</p>
+</header>
+
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tab-btn active" data-tab="video">🎬 Video</button>
+  <button class="tab-btn" data-tab="image">🖼️ Image</button>
+  <button class="tab-btn" data-tab="pdf">📄 PDF</button>
+</div>
+
+<div class="card">
+
+  <!-- ════════════════ VIDEO PANEL ════════════════ -->
+  <div class="panel active" id="panel-video">
+    <div class="drop-zone" id="dz-video">
+      <input type="file" id="fi-video" accept="video/*" />
+      <div class="drop-icon">🎥</div>
+      <div class="drop-text">Drop video or <span>browse</span></div>
+      <div class="file-name" id="fn-video"></div>
+    </div>
+
+    <span class="field-label">Output Resolution</span>
+    <div class="chip-grid" id="res-video">
+      <div class="chip" data-v="144p">144p</div>
+      <div class="chip" data-v="240p">240p</div>
+      <div class="chip" data-v="360p">360p</div>
+      <div class="chip" data-v="480p">480p</div>
+      <div class="chip selected" data-v="720p">720p</div>
+      <div class="chip" data-v="1080p">1080p</div>
+      <div class="chip" data-v="1440p">1440p</div>
+    </div>
+
+    <button class="convert-btn" id="btn-video" disabled>Convert Video</button>
+
+    <div class="progress-section" id="prog-video">
+      <div class="progress-header">
+        <span id="vstage">Processing…</span><span id="vpct">0%</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="vfill"></div></div>
+      <div class="status-msg" id="vmsg">Starting…</div>
+    </div>
+    <a class="download-btn" id="dl-video" href="#">⬇ Download Video</a>
+    <div class="error-msg" id="err-video"></div>
+  </div>
+
+  <!-- ════════════════ IMAGE PANEL ════════════════ -->
+  <div class="panel" id="panel-image">
+    <div class="drop-zone" id="dz-image">
+      <input type="file" id="fi-image" accept="image/*" />
+      <div class="drop-icon">🖼️</div>
+      <div class="drop-text">Drop image or <span>browse</span></div>
+      <div class="file-name" id="fn-image"></div>
+    </div>
+
+    <span class="field-label">Resize To</span>
+    <div class="chip-grid" id="res-image">
+      <div class="chip" data-v="144p">144p</div>
+      <div class="chip" data-v="240p">240p</div>
+      <div class="chip" data-v="360p">360p</div>
+      <div class="chip" data-v="480p">480p</div>
+      <div class="chip" data-v="720p">720p</div>
+      <div class="chip" data-v="1080p">1080p</div>
+      <div class="chip" data-v="1440p">1440p</div>
+      <div class="chip selected" data-v="original">Original</div>
+    </div>
+
+    <div class="field">
+      <span class="field-label">Output Format</span>
+      <select id="img-format">
+        <option value="jpg">JPEG (.jpg)</option>
+        <option value="png">PNG (.png)</option>
+        <option value="webp">WebP (.webp)</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <span class="field-label">Quality — <span id="q-val">85</span>%</span>
+      <div class="range-row">
+        <input type="range" id="img-quality" min="20" max="100" value="85"
+               oninput="document.getElementById('q-val').textContent=this.value" />
+        <span class="range-val" id="q-label">85</span>
+      </div>
+    </div>
+
+    <button class="convert-btn" id="btn-image" disabled>Convert Image</button>
+
+    <div class="progress-section" id="prog-image">
+      <div class="progress-header">
+        <span id="istage">Processing…</span><span id="ipct">0%</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="ifill"></div></div>
+      <div class="status-msg" id="imsg">Starting…</div>
+    </div>
+    <a class="download-btn" id="dl-image" href="#">⬇ Download Image</a>
+    <div class="error-msg" id="err-image"></div>
+  </div>
+
+  <!-- ════════════════ PDF PANEL ════════════════ -->
+  <div class="panel" id="panel-pdf">
+    <div class="drop-zone" id="dz-pdf">
+      <input type="file" id="fi-pdf" accept=".pdf" />
+      <div class="drop-icon">📄</div>
+      <div class="drop-text">Drop PDF or <span>browse</span></div>
+      <div class="file-name" id="fn-pdf"></div>
+    </div>
+
+    <span class="field-label">Compression Level</span>
+    <div class="chip-grid" id="pdf-quality">
+      <div class="chip" data-v="low">🔥 Maximum<br><small style="font-size:.65rem;color:#888">Smallest size</small></div>
+      <div class="chip selected" data-v="medium">⚖️ Balanced<br><small style="font-size:.65rem;color:#888">Recommended</small></div>
+      <div class="chip" data-v="high">✨ Quality<br><small style="font-size:.65rem;color:#888">Best clarity</small></div>
+    </div>
+
+    <button class="convert-btn" id="btn-pdf" disabled>Compress PDF</button>
+
+    <div class="progress-section" id="prog-pdf">
+      <div class="progress-header">
+        <span id="pstage">Processing…</span><span id="ppct">0%</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="pfill"></div></div>
+      <div class="status-msg" id="pmsg">Starting…</div>
+    </div>
+    <a class="download-btn" id="dl-pdf" href="#">⬇ Download Compressed PDF</a>
+    <div class="size-compare" id="size-info"></div>
+    <div class="error-msg" id="err-pdf"></div>
+  </div>
+
+</div><!-- .card -->
+
+<script>
+// ── Tab switching ────────────────────────────────────────────────────────────
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("panel-" + btn.dataset.tab).classList.add("active");
+  });
+});
+
+// ── Chip selection ────────────────────────────────────────────────────────────
+function initChips(groupId) {
+  const group = document.getElementById(groupId);
+  let selected = group.querySelector(".chip.selected")?.dataset.v || null;
+  group.querySelectorAll(".chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      group.querySelectorAll(".chip").forEach(c => c.classList.remove("selected"));
+      chip.classList.add("selected");
+      selected = chip.dataset.v;
+    });
+  });
+  return () => selected;
+}
+
+const getVideoRes  = initChips("res-video");
+const getImageRes  = initChips("res-image");
+const getPdfQ      = initChips("pdf-quality");
+
+// ── Quality range sync ───────────────────────────────────────────────────────
+const imgQuality = document.getElementById("img-quality");
+const qLabel     = document.getElementById("q-label");
+imgQuality.addEventListener("input", () => { qLabel.textContent = imgQuality.value; });
+
+// ── Drop zones ───────────────────────────────────────────────────────────────
+function initDropZone(dzId, inputId, fnId, btnId, fileVar) {
+  const dz    = document.getElementById(dzId);
+  const input = document.getElementById(inputId);
+  const fn    = document.getElementById(fnId);
+  const btn   = document.getElementById(btnId);
+
+  dz.addEventListener("dragover",  e => { e.preventDefault(); dz.classList.add("over"); });
+  dz.addEventListener("dragleave", () => dz.classList.remove("over"));
+  dz.addEventListener("drop", e => {
+    e.preventDefault(); dz.classList.remove("over");
+    const file = e.dataTransfer.files[0];
+    if (file) setFile(file, fn, btn, fileVar);
+  });
+  input.addEventListener("change", () => {
+    if (input.files[0]) setFile(input.files[0], fn, btn, fileVar);
+  });
+}
+
+const files = { video: null, image: null, pdf: null };
+
+function setFile(file, fnEl, btnEl, key) {
+  files[key] = file;
+  const mb = (file.size / 1024 / 1024).toFixed(1);
+  fnEl.textContent = `${file.name}  (${mb} MB)`;
+  btnEl.disabled   = false;
+}
+
+initDropZone("dz-video", "fi-video", "fn-video", "btn-video", "video");
+initDropZone("dz-image", "fi-image", "fn-image", "btn-image", "image");
+initDropZone("dz-pdf",   "fi-pdf",   "fn-pdf",   "btn-pdf",   "pdf");
+
+// ── Generic submit + poll ────────────────────────────────────────────────────
+function buildJob(config) {
+  const { uploadUrl, formData, progId, stageId, pctId, fillId, msgId, dlId, errId, btnId, label, originalSize } = config;
+
+  resetJob(progId, dlId, errId);
+  document.getElementById(btnId).disabled = true;
+  document.getElementById(progId).style.display = "block";
+  setProgress(stageId, pctId, fillId, msgId, "Uploading…", 0);
+
+  fetch(uploadUrl, { method: "POST", body: formData })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) throw new Error(data.error);
+      setProgress(stageId, pctId, fillId, msgId, "Queued…", 2);
+      pollJob(data.job_id, stageId, pctId, fillId, msgId, dlId, errId, btnId, label, originalSize);
+    })
+    .catch(err => {
+      showError(errId, progId, err.message);
+      document.getElementById(btnId).disabled = false;
+    });
+}
+
+function pollJob(jobId, stageId, pctId, fillId, msgId, dlId, errId, btnId, label, originalSize) {
+  const timer = setInterval(async () => {
+    try {
+      const res  = await fetch(`/status/${jobId}`);
+      const data = await res.json();
+
+      if (data.status === "queued") {
+        setProgress(stageId, pctId, fillId, msgId, "In queue…", 2);
+      } else if (data.status === "processing") {
+        setProgress(stageId, pctId, fillId, msgId, `${label}…`, data.progress);
+      } else if (data.status === "done") {
+        clearInterval(timer);
+        setProgress(stageId, pctId, fillId, msgId, "Done! ✓", 100);
+        const dlBtn = document.getElementById(dlId);
+        dlBtn.href  = `/download/${jobId}`;
+        dlBtn.style.display = "block";
+        // PDF size comparison
+        if (dlId === "dl-pdf" && originalSize) {
+          dlBtn.addEventListener("click", () => {
+            document.getElementById("size-info").style.display = "block";
+            document.getElementById("size-info").textContent =
+              `Original: ${(originalSize/1024/1024).toFixed(2)} MB — compressed & saved!`;
+          }, { once: true });
+        }
+      } else if (data.status === "error") {
+        clearInterval(timer);
+        showError(errId, null, data.error || "Processing failed.");
+        document.getElementById(btnId).disabled = false;
+      }
+    } catch (_) {}
+  }, 1000);
+}
+
+function setProgress(stageId, pctId, fillId, msgId, msg, pct) {
+  document.getElementById(msgId).textContent  = msg;
+  document.getElementById(pctId).textContent  = `${pct}%`;
+  document.getElementById(fillId).style.width = `${pct}%`;
+  document.getElementById(stageId).textContent = pct >= 100 ? "Complete ✓" : pct > 5 ? "Processing…" : "Uploading…";
+}
+
+function showError(errId, progId, msg) {
+  const el = document.getElementById(errId);
+  el.textContent  = `⚠ ${msg}`;
+  el.style.display = "block";
+  if (progId) document.getElementById(progId).style.display = "none";
+}
+
+function resetJob(progId, dlId, errId) {
+  document.getElementById(progId).style.display = "none";
+  document.getElementById(dlId).style.display   = "none";
+  document.getElementById(errId).style.display  = "none";
+  const si = document.getElementById("size-info");
+  if (si) si.style.display = "none";
+}
+
+// ── Video submit ─────────────────────────────────────────────────────────────
+document.getElementById("btn-video").addEventListener("click", () => {
+  if (!files.video) return;
+  const fd = new FormData();
+  fd.append("file",       files.video);
+  fd.append("resolution", getVideoRes());
+  buildJob({ uploadUrl: "/upload/video", formData: fd,
+    progId: "prog-video", stageId: "vstage", pctId: "vpct",
+    fillId: "vfill", msgId: "vmsg", dlId: "dl-video",
+    errId: "err-video", btnId: "btn-video", label: "Converting video" });
+});
+
+// ── Image submit ─────────────────────────────────────────────────────────────
+document.getElementById("btn-image").addEventListener("click", () => {
+  if (!files.image) return;
+  const fd = new FormData();
+  fd.append("file",       files.image);
+  fd.append("resolution", getImageRes());
+  fd.append("format",     document.getElementById("img-format").value);
+  fd.append("quality",    document.getElementById("img-quality").value);
+  buildJob({ uploadUrl: "/upload/image", formData: fd,
+    progId: "prog-image", stageId: "istage", pctId: "ipct",
+    fillId: "ifill", msgId: "imsg", dlId: "dl-image",
+    errId: "err-image", btnId: "btn-image", label: "Converting image" });
+});
+
+// ── PDF submit ───────────────────────────────────────────────────────────────
+document.getElementById("btn-pdf").addEventListener("click", () => {
+  if (!files.pdf) return;
+  const fd = new FormData();
+  fd.append("file",    files.pdf);
+  fd.append("quality", getPdfQ());
+  buildJob({ uploadUrl: "/upload/pdf", formData: fd,
+    progId: "prog-pdf", stageId: "pstage", pctId: "ppct",
+    fillId: "pfill", msgId: "pmsg", dlId: "dl-pdf",
+    errId: "err-pdf", btnId: "btn-pdf",
+    label: "Compressing PDF", originalSize: files.pdf.size });
+});
+</script>
+</body>
+</html>
